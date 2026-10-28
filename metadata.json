@@ -1,0 +1,6 @@
+{
+  "name": "메디루틴 AI (MediRoutine)",
+  "description": "AI 처방전 성분 분석, 4분할 시간대별 복약 루틴 관리 및 간·위장 보호 가이드와 AI 약사 상담",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
