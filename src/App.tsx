@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Header } from './components/Header';
 import { RoutineChecklist } from './components/RoutineChecklist';
 import { AiAnalysisModal } from './components/AiAnalysisModal';
@@ -17,10 +17,18 @@ import {
 } from 'lucide-react';
 
 const STORAGE_KEY_MEDS = 'mediroutine_medications_v1';
-const STORAGE_KEY_ROUTINE = 'mediroutine_routine_v1';
+const STORAGE_KEY_ROUTINE = 'mediroutine_routine_v2';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'routine' | 'analysis' | 'interaction' | 'chat'>('routine');
+
+  // Today Date Calculation
+  const today = new Date();
+  const todayDateStr = today.toISOString().split('T')[0];
+
+  // Selected Date state (defaults to today)
+  const [selectedDate, setSelectedDate] = useState<string>(todayDateStr);
+
   const [medications, setMedications] = useState<MedicationItem[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_MEDS);
@@ -38,11 +46,37 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
-    // Default pre-checked state for demonstration
-    const today = new Date().toISOString().split('T')[0];
+
+    // Default pre-checked state with today and past days seed data
+    const d1 = new Date(); d1.setDate(d1.getDate() - 1); const yesterday = d1.toISOString().split('T')[0];
+    const d2 = new Date(); d2.setDate(d2.getDate() - 2); const twoDaysAgo = d2.toISOString().split('T')[0];
+    const d3 = new Date(); d3.setDate(d3.getDate() - 3); const threeDaysAgo = d3.toISOString().split('T')[0];
+
     return {
-      [`${today}_morning_med-tylenol-500`]: true,
-      [`${today}_morning_med-rtg-omega3`]: true,
+      // Today: partial morning complete
+      [`${todayDateStr}_morning_med-tylenol-500`]: true,
+      [`${todayDateStr}_morning_med-rtg-omega3`]: true,
+
+      // Yesterday: 100% completed day
+      [`${yesterday}_morning_med-tylenol-500`]: true,
+      [`${yesterday}_morning_med-rtg-omega3`]: true,
+      [`${yesterday}_lunch_med-ezn6-eve`]: true,
+      [`${yesterday}_dinner_med-tylenol-500`]: true,
+      [`${yesterday}_dinner_med-clavixin-amoxicillin`]: true,
+      [`${yesterday}_bedtime_med-magnesium-sleep`]: true,
+
+      // 2 days ago: partial completed
+      [`${twoDaysAgo}_morning_med-tylenol-500`]: true,
+      [`${twoDaysAgo}_morning_med-rtg-omega3`]: true,
+      [`${twoDaysAgo}_dinner_med-tylenol-500`]: true,
+      [`${twoDaysAgo}_bedtime_med-magnesium-sleep`]: true,
+
+      // 3 days ago: 100% completed
+      [`${threeDaysAgo}_morning_med-tylenol-500`]: true,
+      [`${threeDaysAgo}_morning_med-rtg-omega3`]: true,
+      [`${threeDaysAgo}_lunch_med-ezn6-eve`]: true,
+      [`${threeDaysAgo}_dinner_med-tylenol-500`]: true,
+      [`${threeDaysAgo}_bedtime_med-magnesium-sleep`]: true,
     };
   });
 
@@ -67,18 +101,21 @@ export default function App() {
     }
   }, [routineState]);
 
-  // Today Date String
-  const today = new Date();
-  const todayDateStr = today.toISOString().split('T')[0];
-  const formattedDate = today.toLocaleDateString('ko-KR', {
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-  });
+  // Formatted date string for selected date
+  const selectedDateFormatted = useMemo(() => {
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    return dateObj.toLocaleDateString('ko-KR', {
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long',
+    });
+  }, [selectedDate]);
 
-  // Toggle routine checkbox
-  const handleToggleRoutine = (slot: TimingSlot, medId: string) => {
-    const key = `${todayDateStr}_${slot}_${medId}`;
+  // Toggle routine checkbox for target date
+  const handleToggleRoutine = (slot: TimingSlot, medId: string, targetDateStr?: string) => {
+    const dateToUse = targetDateStr || selectedDate;
+    const key = `${dateToUse}_${slot}_${medId}`;
     setRoutineState((prev) => ({
       ...prev,
       [key]: !prev[key],
@@ -96,7 +133,7 @@ export default function App() {
     setMedications((prev) => prev.filter((m) => m.id !== id));
   };
 
-  // Calculate completion
+  // Calculate completion for selected date
   let totalTasks = 0;
   let completedTasks = 0;
   const SLOTS: TimingSlot[] = ['morning', 'lunch', 'dinner', 'bedtime'];
@@ -104,7 +141,7 @@ export default function App() {
     const medsForSlot = medications.filter((m) => m.timings.includes(slot));
     medsForSlot.forEach((m) => {
       totalTasks++;
-      if (routineState[`${todayDateStr}_${slot}_${m.id}`]) {
+      if (routineState[`${selectedDate}_${slot}_${m.id}`]) {
         completedTasks++;
       }
     });
@@ -123,7 +160,9 @@ export default function App() {
         setActiveTab={setActiveTab}
         completedCount={completedTasks}
         totalCount={totalTasks}
-        todayDateStr={formattedDate}
+        todayDateStr={selectedDateFormatted}
+        isToday={selectedDate === todayDateStr}
+        onSelectToday={() => setSelectedDate(todayDateStr)}
       />
 
       {/* Main Container */}
@@ -136,6 +175,8 @@ export default function App() {
             onOpenAddModal={() => setIsAddModalOpen(true)}
             onSelectMedication={(med) => setSelectedMedication(med)}
             onGoToInteraction={() => setActiveTab('interaction')}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
             todayDateStr={todayDateStr}
           />
         )}

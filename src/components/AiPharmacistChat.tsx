@@ -89,7 +89,8 @@ export const AiPharmacistChat: React.FC<AiPharmacistChatProps> = ({
       });
 
       if (!response.ok) {
-        throw new Error('약사 AI의 응답을 받아오지 못했습니다.');
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.details || errorData?.error || '약사 AI의 응답을 받아오지 못했습니다.');
       }
 
       const data = await response.json();

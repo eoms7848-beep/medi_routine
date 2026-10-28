@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pill, ShieldAlert, Sparkles, MessageSquareHeart, CheckCircle2 } from 'lucide-react';
+import { Pill, ShieldAlert, Sparkles, MessageSquareHeart, CheckCircle2, Calendar } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: 'routine' | 'analysis' | 'interaction' | 'chat';
@@ -7,6 +7,8 @@ interface HeaderProps {
   completedCount: number;
   totalCount: number;
   todayDateStr: string;
+  isToday: boolean;
+  onSelectToday: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -15,6 +17,8 @@ export const Header: React.FC<HeaderProps> = ({
   completedCount,
   totalCount,
   todayDateStr,
+  isToday,
+  onSelectToday,
 }) => {
   const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
@@ -31,10 +35,20 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="flex items-center gap-2">
                 <span className="font-bold text-lg text-slate-900 tracking-tight">메디루틴 AI</span>
                 <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                  Gemini Flash 3.8
+                  스마트 복약 관리
                 </span>
               </div>
-              <p className="text-xs text-slate-400 font-medium">{todayDateStr}</p>
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+                <span>{todayDateStr}</span>
+                {!isToday && (
+                  <button
+                    onClick={onSelectToday}
+                    className="text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+                  >
+                    오늘로 이동
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -62,7 +76,9 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="absolute text-[10px] font-bold text-slate-700">{percentage}%</span>
             </div>
             <div className="hidden sm:block text-left">
-              <div className="text-[11px] font-medium text-slate-400">오늘의 복약률</div>
+              <div className="text-[11px] font-medium text-slate-400">
+                {isToday ? '오늘의 복약률' : '선택일 복약률'}
+              </div>
               <div className="text-xs font-bold text-slate-800">
                 {completedCount}/{totalCount} 완료
               </div>

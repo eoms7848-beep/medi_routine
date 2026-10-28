@@ -149,11 +149,30 @@ ${medSummary}
 3. 특히 "커피 마셔도 되나요?", "술 한잔 해도 되나요?", "식후 바로 먹나요?" 같은 일상 속 궁금증에 대해 "구체적인 시간(예: 복용 전후 2시간 금지)"과 "대체 팁"을 명확히 알려주세요.
 4. 필요시 의사나 약사와의 대면 상담이 필수적인 위험 신호(심한 복통, 황달, 호흡곤란 등)가 있을 때는 즉시 병원 진료를 권고하세요.`;
 
-    // Map messages to Gemini contents format
-    const contents = messages.map((msg: { role: string; content: string }) => ({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.content }],
-    }));
+    // Filter valid messages and ensure the conversation starts with a 'user' turn
+    const cleanedMessages = messages.filter((m: any) => m && typeof m.content === 'string' && m.content.trim().length > 0);
+
+    // Drop any initial bot greetings from history so first content is always from user
+    let startIndex = cleanedMessages.findIndex((m: any) => m.role === 'user');
+    if (startIndex === -1) {
+      return res.status(400).json({ error: '사용자의 질문 내용이 없습니다.' });
+    }
+
+    const validHistory = cleanedMessages.slice(startIndex);
+
+    // Build Gemini contents with strictly alternating turns
+    const contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
+    for (const msg of validHistory) {
+      const role = msg.role === 'user' ? 'user' : 'model';
+      if (contents.length > 0 && contents[contents.length - 1].role === role) {
+        contents[contents.length - 1].parts.push({ text: msg.content });
+      } else {
+        contents.push({
+          role,
+          parts: [{ text: msg.content }],
+        });
+      }
+    }
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.8-flash',
@@ -206,7 +225,20 @@ app.post('/api/check-safety', async (req, res) => {
       },
     });
 
-    res.json(JSON.parse(response.text || '{}'));
+    const outputText = response.text || '{}';
+    let parsedData;
+    try {
+      parsedData = JSON.parse(outputText);
+    } catch {
+      const match = outputText.match(/\{[\s\S]*\}/);
+      if (match) {
+        parsedData = JSON.parse(match[0]);
+      } else {
+        throw new Error('안전성 분석 JSON 파싱 실패');
+      }
+    }
+
+    res.json(parsedData);
   } catch (error: any) {
     console.error('Error in safety check:', error);
     res.status(500).json({ error: '안전성 판별 중 오류가 발생했습니다.' });
